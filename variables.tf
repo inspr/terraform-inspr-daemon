@@ -1,3 +1,16 @@
+
+// auth
+variable "cluster_endpoint" {
+  description = ""
+  type = string
+}
+
+variable "cluster_ca_cert" {
+  description = ""
+  type = string
+}
+
+
 // deployment
 variable "release_name" {
   description = ""

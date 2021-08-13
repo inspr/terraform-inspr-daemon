@@ -1,6 +1,7 @@
 provider "helm" {
   kubernetes {
-    config_path = "~/.kube/config"
+    host                   = var.cluster_endpoint
+    cluster_ca_certificate = base64decode(var.cluster_ca_cert)
   }
 }
 
