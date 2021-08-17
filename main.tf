@@ -1,7 +1,9 @@
-provider "helm" {
-  kubernetes {
-    host                   = var.cluster_endpoint
-    cluster_ca_certificate = base64decode(var.cluster_ca_cert)
+terraform {
+  required_providers {
+    helm = {
+      source = "hashicorp/helm"
+      version = ">= 2.2.0"
+    }
   }
 }
 
@@ -13,6 +15,10 @@ resource "helm_release" "insprdaemon" {
   name      = var.release_name
   namespace = var.namespace
   create_namespace = true
+
+  // waits for all jobs to be done in cluster
+  wait = true
+  wait_for_jobs = true
 
   // insprd svc
   set {
@@ -31,6 +37,20 @@ resource "helm_release" "insprdaemon" {
     name = "logLevel"
     value = var.log_level
   }
+  
+  // insprd svc config
+  set {
+    name = "service.type"
+    value = var.insprd_svc_type
+  }
+  set {
+    name = "service.port"
+    value = var.insprd_svc_port
+  }
+  set {
+    name = "service.targetPort"
+    value = var.insprd_svc_targetPort
+  }
 
   // image section
   set {
@@ -46,11 +66,10 @@ resource "helm_release" "insprdaemon" {
     value = var.image_tag
   }
 
-
   // apps sections
   set {
     name = "apps.namespace"
-    value = "${var.insprd_name}-${var.apps_namespace}"
+    value = var.apps_namespace
   }
   set {
     name = "apps.createNamespace"
@@ -64,13 +83,12 @@ resource "helm_release" "insprdaemon" {
   }
   set {
     name = "ingress.host"
-    value = var.ingress_host
+    value = var.enable_ingress == true ? var.ingress_host : ""
   }
   set {
     name = "ingress.class"
-    value = var.ingress_class
+    value = var.enable_ingress == true ? var.ingress_class : ""
   }
-
 
   // init
   set {
@@ -79,33 +97,8 @@ resource "helm_release" "insprdaemon" {
   }
   set { 
     name = "init.key"
-    value = ""
+    value = var.init_generate_key == true ? "" : var.init_key
   }
-
-  // auth name
-  set {
-    name = "auth.name"
-    value = "auth"
-  }
-
-
-
-  // CONSTANTS
-  
-  // svc constants
-  set {
-    name = "service.type"
-    value = "ClusterIP"
-  }
-  set {
-    name = "service.port"
-    value = "80"
-  }
-  set {
-    name = "service.targetPort"
-    value = "8080"
-  }
-
 
   // sidecar
   // sidecar.image section
@@ -124,39 +117,37 @@ resource "helm_release" "insprdaemon" {
   // sidecar.ports section
   set {
     name = "sidecar.ports.client.read"
-    value = "3046"
+    value = var.sidecar_client_read_port
   }
   set {
     name = "sidecar.ports.client.write"
-    value = "3048"
+    value = var.sidecar_client_write_port
   }
   set {
     name = "sidecar.ports.server.read"
-    value = "3047"
+    value = var.sidecar_server_read_port
   }
   set {
     name = "sidecar.ports.server.write"
-    value = "3051"
+    value = var.sidecar_server_write_port
   }
-
 
   // auth svc
   set {
     name = "auth.name"
-    value = "auth"
+    value = var.auth_name
   }
-  // auth.service
   set {
     name = "auth.service.type"
-    value = "ClusterIP"
+    value = var.auth_svc_type
   }
   set {
     name = "auth.service.port"
-    value = 80 
+    value = var.auth_svc_port 
   }
   set {
     name = "auth.service.targetPort"
-    value = 8081
+    value = var.auth_svc_targetPort
   }
   //auth.image
   set {
@@ -171,7 +162,6 @@ resource "helm_release" "insprdaemon" {
     name = "auth.image.tag"
     value = var.image_tag
   } 
-
   
   // secret generator
   set {
